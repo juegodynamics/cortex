@@ -15,6 +15,7 @@ export enum Colors {
 
 export const DarkTheme = createTheme({
     palette: {
+        mode: "dark",
         primary: {
             main: Colors.LIGHT_BLUE,
         },

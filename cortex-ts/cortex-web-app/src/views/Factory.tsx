@@ -5,79 +5,66 @@ import ELK, {
 } from "elkjs/lib/elk.bundled.js";
 import {
     FactoryEdgeProps,
-    FactoryNodeProps,
     getEdgeString,
     FactoryNodes,
     FactoryEdges,
 } from "../lib/factory";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import ReactFlow, {
     Node as RFNode,
     Edge as RFEdge,
     ReactFlowProvider,
-    Panel,
     useNodesState,
     useEdgesState,
     useReactFlow,
     NodeProps,
     Handle,
     Position,
-    HandleType,
     Background,
-    BackgroundVariant,
-    useViewport,
     useUpdateNodeInternals,
 } from "reactflow";
-
 import "reactflow/dist/style.css";
-import { Box, CssBaseline, Paper, ThemeProvider } from "@mui/material";
+import {
+    Box,
+    Button,
+    CssBaseline,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    Fab,
+    Stack,
+    TextField,
+    Typography,
+    useTheme,
+    ThemeProvider,
+} from "@mui/material";
 import { DarkTheme } from "../theme";
 import "./Factory.css";
 import { GlassSurface } from "../components/surfaces/GlassSurface";
+import { Recipe, RecipeIndex } from "../lib/factory/Recipe";
+import AddIcon from "@mui/icons-material/Add";
 
 const elk = new ELK();
-
 const NODE_WIDTH = 300;
 
-const getNodeHeight = (facNode: FactoryNodeProps) =>
-    16 + 20 * Math.max(facNode.ingredients.length, facNode.products.length);
+type RFNodeProps = { recipe: Recipe };
 
-const factoryNodeToSize = (facNode: FactoryNodeProps) => ({
-    width: NODE_WIDTH,
-    height: getNodeHeight(facNode),
-});
-
-const factoryNodeToRFNode = (
-    facNode: FactoryNodeProps
-): RFNode<FactoryNodeProps> => ({
-    id: facNode.name,
-    data: facNode,
-    position: { x: 0, y: 0 },
-    type: "factory",
-    ...factoryNodeToSize(facNode),
-});
-
-const factoryEdgeToRFEdge = (
-    facEdge: FactoryEdgeProps
-): RFEdge<FactoryEdgeProps> => ({
-    id: getEdgeString(facEdge),
-    source: facEdge.start.node,
-    sourceHandle: facEdge.start.port,
-    target: facEdge.end.node,
-    targetHandle: facEdge.end.port,
-    data: facEdge,
-});
+const getNodeHeight = ({ recipe }: RFNodeProps) =>
+    16 +
+    20 *
+        Math.max(
+            recipe?.ingredients?.length || 0,
+            recipe?.products?.length || 0
+        );
 
 const layoutNodes = async ({
     nodes: rfNodes,
     edges: rfEdges,
 }: {
-    nodes: RFNode<FactoryNodeProps>[];
-    edges: RFEdge<FactoryEdgeProps>[];
-}): Promise<{
-    nodes: RFNode<FactoryNodeProps>[];
-    edges: RFEdge<FactoryEdgeProps>[];
-}> => {
+    nodes: RFNode<RFNodeProps>[];
+    edges: RFEdge[];
+}) => {
     const layoutOptions: LayoutOptions = {
         "elk.algorithm": "layered",
         "elk.direction": "RIGHT",
@@ -88,14 +75,11 @@ const layoutNodes = async ({
     const graph: ElkNode = {
         id: "root",
         layoutOptions: layoutOptions,
-        children: rfNodes.map(
-            (rfNode: RFNode): ElkNode => ({
-                id: rfNode.id,
-                width: rfNode.width || 300,
-                height: rfNode.height || getNodeHeight(rfNode.data),
-                // TODO: Ports?
-            })
-        ),
+        children: rfNodes.map((rfNode) => ({
+            id: rfNode.id,
+            width: rfNode.width || 300,
+            height: rfNode.height || getNodeHeight(rfNode.data),
+        })),
         edges: rfEdges.map((rfEdge) => ({
             id: rfEdge.id,
             sources: [`${rfEdge.source}`],
@@ -125,58 +109,41 @@ const layoutNodes = async ({
     };
 };
 
-const initialNodes = FactoryNodes.map((facNode) =>
-    factoryNodeToRFNode(facNode)
-);
-const initialEdges = FactoryEdges.map((facEdge) =>
-    factoryEdgeToRFEdge(facEdge)
-);
-
-const FactoryNodeComponent = (props: NodeProps<FactoryNodeProps>) => {
-    // const nodeObserverRef = React.useRef<HTMLDivElement>(null)
+const RecipeNodeComponent = ({
+    id,
+    data: { recipe },
+}: NodeProps<RFNodeProps>) => {
     const updateNodeInternals = useUpdateNodeInternals();
-    React.useEffect(() => {
-        updateNodeInternals(props.id);
-    }, []);
+    useEffect(() => {
+        updateNodeInternals(id);
+    }, [id, updateNodeInternals]);
 
     return (
         <div>
-            {props.data.ingredients.map((ingredient, ingredientIndex) => (
+            {recipe.ingredients?.map((ingredient, ingredientIndex) => (
                 <Handle
-                    key={ingredient}
-                    id={ingredient}
+                    key={`${recipe.name}.ingredient.${ingredient.name}`}
+                    id={`${recipe.name}.ingredient.${ingredient.name}`}
                     position={Position.Left}
-                    type={"target"}
-                    style={{
-                        top: 11 + 16 * ingredientIndex,
-                        left: -16,
-                        // transform: `translate(0,${16 * ingredientIndex}px)`,
-                    }}
+                    type="target"
+                    style={{ top: 11 + 16 * ingredientIndex, left: -16 }}
                 />
             ))}
 
             <GlassSurface
-                minHeight={`${16 * Math.max(props.data.ingredients.length, props.data.products.length)}px`}
-                sx={{
-                    p: 1,
-
-                    // height: `${getNodeHeight(props.data)}px`
-                }}
+                minHeight={`${16 * Math.max(recipe.ingredients?.length || 0, recipe.products?.length || 0)}px`}
+                sx={{ p: 1 }}
             >
-                {props.data.name}
+                {recipe.name}
             </GlassSurface>
 
-            {props.data.products.map((product, productIndex) => (
+            {recipe.products?.map((product, productIndex) => (
                 <Handle
-                    key={product}
-                    id={product}
+                    key={`${recipe.name}.product.${product.name}`}
+                    id={`${recipe.name}.product.${product.name}`}
                     position={Position.Right}
-                    type={"source"}
-                    style={{
-                        top: 11 + 16 * productIndex,
-                        right: -16,
-                        // transform: `translate(0,${16 * productIndex}px)`,
-                    }}
+                    type="source"
+                    style={{ top: 11 + 16 * productIndex, right: -16 }}
                 />
             ))}
         </div>
@@ -184,60 +151,259 @@ const FactoryNodeComponent = (props: NodeProps<FactoryNodeProps>) => {
 };
 
 const nodeTypes = {
-    factory: FactoryNodeComponent,
+    recipe: RecipeNodeComponent,
 };
 
-const LayoutFlow = () => {
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+const getUnique = <T,>(arr: T[]): T[] =>
+    arr.filter(
+        (element, index, _arr) =>
+            _arr.findIndex((_element) => _element === element) === index
+    );
 
-    const [isLayedOut, setIsLayedOut] = React.useState(false);
+const recipesToReactFlow = (recipeNames: string[]) => {
+    const uniqueRecipeNames = getUnique(recipeNames);
+    const nodes: Record<string, RFNode<{ recipe: Recipe }>> = {};
+    const ingredientIndex: Record<string, string[]> = {};
+    const productIndex: Record<string, string[]> = {};
 
+    uniqueRecipeNames.forEach((recipeName) => {
+        const recipe = RecipeIndex[recipeName];
+        nodes[recipeName] = {
+            id: recipeName,
+            type: "recipe",
+            position: { x: 0, y: 0 },
+            data: { recipe },
+        };
+
+        recipe.ingredients?.forEach(({ name: ingredient }) => {
+            ingredientIndex[ingredient] = [
+                ...(ingredientIndex[ingredient] || []),
+                recipeName,
+            ];
+        });
+
+        recipe.products?.forEach(({ name: product }) => {
+            productIndex[product] = [
+                ...(productIndex[product] || []),
+                recipeName,
+            ];
+        });
+    });
+
+    const edges: Record<string, RFEdge> = {};
+
+    Object.entries(ingredientIndex).forEach(([itemName, ingredientRecipes]) => {
+        productIndex[itemName]?.forEach((productRecipe) => {
+            ingredientRecipes.forEach((ingredientRecipe) => {
+                const edge: RFEdge = {
+                    id: `${productRecipe}.product.${itemName}-->${ingredientRecipe}.ingredient.${itemName}`,
+                    source: productRecipe,
+                    sourceHandle: `product.${itemName}`,
+                    target: ingredientRecipe,
+                    targetHandle: `ingredient.${itemName}`,
+                    data: { label: itemName },
+                };
+                edges[edge.id] = edge;
+            });
+        });
+    });
+
+    return { nodes: Object.values(nodes), edges: Object.values(edges) };
+};
+
+const getFilteredRecipes = ({
+    recipeSearchFilter,
+}: {
+    recipeSearchFilter: string;
+}): string[] => {
+    const recipeList = Object.values(RecipeIndex).map((recipe) => recipe.name);
+    if (!recipeSearchFilter) return recipeList;
+
+    return recipeList.filter((recipe) =>
+        [
+            recipe,
+            ...(RecipeIndex[recipe]?.ingredients?.map(
+                (ingredient) => ingredient.name
+            ) || []),
+            ...(RecipeIndex[recipe]?.products?.map((product) => product.name) ||
+                []),
+        ].some((key) => key.includes(recipeSearchFilter))
+    );
+};
+
+type RecipeCounter = Record<string, number>;
+
+const LayoutFlow = ({
+    initialRecipeCounter = {},
+}: {
+    initialRecipeCounter?: RecipeCounter;
+}) => {
+    const [recipeCounter, setRecipeCounter] =
+        useState<Record<string, number>>(initialRecipeCounter);
+    const [nodes, setNodes, onNodesChange] = useNodesState<RFNodeProps>([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [isLayedOut, setIsLayedOut] = useState(false);
     const { fitView } = useReactFlow();
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (!isLayedOut) {
-            layoutNodes({ nodes, edges })
+            layoutNodes(recipesToReactFlow(Object.keys(recipeCounter)))
                 .then(({ nodes: nextNodes, edges: nextEdges }) => {
                     setNodes(nextNodes);
                     setEdges(nextEdges);
                     setIsLayedOut(true);
                 })
-                .catch((e) => console.warn(e));
+                .catch(console.warn);
         }
-    }, [isLayedOut]);
+    }, [isLayedOut, recipeCounter, setNodes, setEdges]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         window.requestAnimationFrame(() => {
             fitView();
         });
     }, [nodes, fitView]);
 
+    const [isMenuVisible, setIsMenuVisible] = useState(false);
+    const [recipeSearchFilter, setRecipeSearchFilter] = useState("");
+    const [page, setPage] = useState(1);
+
+    const options = useMemo(
+        () =>
+            getFilteredRecipes({ recipeSearchFilter }).slice(
+                (page - 1) * 15,
+                page * 15
+            ),
+        [page, recipeSearchFilter]
+    );
+    const theme = useTheme();
+
     return (
-        <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            fitView
-        >
-            {/* <Background variant={BackgroundVariant.Cross} /> */}
-        </ReactFlow>
+        <>
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                fitView
+            >
+                <Fab
+                    color="primary"
+                    onClick={() => setIsMenuVisible(true)}
+                    sx={{ position: "absolute", bottom: 16, right: 16 }}
+                >
+                    <AddIcon fontSize="large" />
+                </Fab>
+            </ReactFlow>
+
+            <Dialog
+                open={isMenuVisible}
+                onClose={() => setIsMenuVisible(false)}
+                fullWidth
+                maxWidth="lg"
+            >
+                <DialogTitle>Choose Recipe(s)</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        label="Search"
+                        fullWidth
+                        value={recipeSearchFilter}
+                        onChange={(e) => setRecipeSearchFilter(e.target.value)}
+                    />
+                    <Divider
+                        sx={{
+                            mt: 4,
+                            opacity: 0.6,
+                            border: `0.5px solid ${theme.palette.primary.main}`,
+                        }}
+                    />
+                    <Stack
+                        direction="column"
+                        spacing={1}
+                        divider={
+                            <Divider
+                                sx={{
+                                    opacity: 0.6,
+                                    border: `0.5px solid ${theme.palette.primary.main}`,
+                                }}
+                            />
+                        }
+                        sx={{ width: "100%" }}
+                    >
+                        {options.map((option) => (
+                            <Stack
+                                direction="row"
+                                key={option}
+                                sx={{ width: "100%" }}
+                            >
+                                <Box flexGrow={1} width="25%">
+                                    <Typography variant="subtitle1">
+                                        {option}
+                                    </Typography>
+                                </Box>
+                                <Box flexGrow={1} width="25%">
+                                    <Stack
+                                        direction="column"
+                                        alignItems="flex-start"
+                                    >
+                                        {RecipeIndex[option].ingredients?.map(
+                                            (item) => (
+                                                <Typography
+                                                    key={item.name}
+                                                    variant="body2"
+                                                >
+                                                    {item.name}
+                                                </Typography>
+                                            )
+                                        )}
+                                    </Stack>
+                                </Box>
+                                <Box flexGrow={1} width="25%">
+                                    <Stack
+                                        direction="column"
+                                        alignItems="flex-start"
+                                    >
+                                        {RecipeIndex[option].products?.map(
+                                            (item) => (
+                                                <Typography
+                                                    key={item.name}
+                                                    variant="body2"
+                                                >
+                                                    {item.name}
+                                                </Typography>
+                                            )
+                                        )}
+                                    </Stack>
+                                </Box>
+                                <Box flexGrow={1} width="25%">
+                                    <Button
+                                        variant="contained"
+                                        onClick={() => {
+                                            setRecipeCounter({
+                                                ...recipeCounter,
+                                                [option]: 1,
+                                            });
+                                            setIsMenuVisible(false);
+                                            setIsLayedOut(false);
+                                        }}
+                                    >
+                                        Add
+                                    </Button>
+                                </Box>
+                            </Stack>
+                        ))}
+                    </Stack>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 };
 
-export default function () {
+export default function App() {
     return (
         <ThemeProvider theme={DarkTheme}>
             <CssBaseline />
-            <Box
-                sx={{
-                    position: "relative",
-                    width: "100vw",
-                    height: "100vh",
-                }}
-            >
+            <Box sx={{ position: "relative", width: "100vw", height: "100vh" }}>
                 <ReactFlowProvider>
                     <LayoutFlow />
                 </ReactFlowProvider>

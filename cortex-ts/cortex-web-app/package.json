@@ -34,10 +34,12 @@
         "reactflow": "^11.11.4"
     },
     "devDependencies": {
+        "@types/css": "^0.0.37",
         "@types/katex": "^0.16.7",
         "@types/node": "^20",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
+        "css": "^3.0.0",
         "css-loader": "^7.1.2",
         "eslint": "^8",
         "eslint-config-next": "14.2.3",

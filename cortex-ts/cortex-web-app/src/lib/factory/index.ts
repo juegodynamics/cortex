@@ -1,5 +1,6 @@
 import { FactoryNodeProps } from "./FactoryNode";
 import { FactoryEdgeProps, getEdgeString } from "./FactoryEdge";
+import { IngredientIndex, RecipeIndex } from "./Recipe";
 
 export { FactoryNodeProps, FactoryEdgeProps, getEdgeString };
 
@@ -133,26 +134,56 @@ export const master: RecipeMaster = {
     ],
 };
 
+export const nest = (recipes: string[]): string[] => [
+    ...recipes.flatMap(
+        (recipe) =>
+            RecipeIndex[recipe]?.products?.flatMap(
+                (product) => IngredientIndex[product.name]
+            ) || []
+    ),
+];
+
+export const BaseRecipes: string[] = ["angelsore1-crushed"];
+export const Level1Recipes = nest(BaseRecipes);
+export const Level2Recipes = nest(Level1Recipes);
+export const Level3Recipes = nest(Level2Recipes);
+export const Level4Recipes = nest(Level3Recipes);
+
+export const AllRecipes = [
+    ...BaseRecipes,
+    ...Level1Recipes,
+    // ...Level2Recipes,
+    // ...Level3Recipes,
+    // ...Level4Recipes,
+].filter((value, index, self) => self.indexOf(value) === index);
+
 const convertMaster = () => {
     const nodes: Record<string, FactoryNodeProps> = {};
     const ingredientIndex: Record<string, string[]> = {};
     const productIndex: Record<string, string[]> = {};
 
-    Object.entries(master).forEach(([recipeName, [ingredients, products]]) => {
+    AllRecipes.forEach((recipeName) => {
         nodes[recipeName] = {
             name: recipeName,
-            ingredients,
-            products,
+            ingredients:
+                RecipeIndex[recipeName]?.ingredients?.map(
+                    (rate) => rate.name
+                ) || [],
+            products:
+                RecipeIndex[recipeName]?.products?.map((rate) => rate.name) ||
+                [],
         };
 
-        ingredients.forEach((ingredient) => {
-            ingredientIndex[ingredient] = [
-                ...(ingredientIndex[ingredient] || []),
-                recipeName,
-            ];
-        });
+        RecipeIndex[recipeName]?.ingredients?.forEach(
+            ({ name: ingredient }) => {
+                ingredientIndex[ingredient] = [
+                    ...(ingredientIndex[ingredient] || []),
+                    recipeName,
+                ];
+            }
+        );
 
-        products.forEach((product) => {
+        RecipeIndex[recipeName]?.products?.forEach(({ name: product }) => {
             productIndex[product] = [
                 ...(productIndex[product] || []),
                 recipeName,
@@ -185,3 +216,6 @@ const convertMaster = () => {
 };
 
 export const { nodes: FactoryNodes, edges: FactoryEdges } = convertMaster();
+
+// console.log(FactoryNodes);
+// console.log(FactoryEdges);
