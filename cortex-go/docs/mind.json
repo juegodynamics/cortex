@@ -1,0 +1,24 @@
+{
+    "name": "Mind",
+    "contains": [
+        {
+            "id": "cerebrum",
+            "name": "Complex of Thought & Coordination",
+            "anatomy": "Cerebrum",
+            "contains": [
+                {
+                    "id": "pfc",
+                    "name": "Planning/Decision Arena",
+                    "anatomy": "Prefrontal Cortex (PFC)",
+                    "contains": [
+                        {
+                            "id": "dl-pfc",
+                            "name": "Executive Function",
+                            "anatomy": "Dorsolateral Prefrontal Cortex (dlPFC)"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

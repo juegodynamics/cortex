@@ -1,0 +1,6 @@
+type User @secret(field: passwordHash) {
+    id: ID! @id
+    username: String!
+    email: String!
+    roles: [Role]
+}

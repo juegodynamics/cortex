@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package userauthpb;
+
+option go_package = "github.com/juegodynamics/cortex/models/userauthpb";
+
+import "google/protobuf/timestamp.proto";
+
+// User message definition
+message User {
+    string id = 1; // Unique identifier for the user
+    string username = 2; // Username of the user
+    string email = 3; // Email address of the user
+    string password_hash = 4; // Hashed password for authentication
+    repeated string roles = 5; // List of roles assigned to the user
+    google.protobuf.Timestamp created_at = 6; // Account creation timestamp
+    google.protobuf.Timestamp updated_at = 7; // Last account update timestamp
+}
+
+// Request message for creating a new user
+message CreateUserRequest {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+}
+
+// Response message for user creation
+message CreateUserResponse {
+    User user = 1;
+}
+
+// Request message for user authentication
+message AuthenticateUserRequest {
+    string username_or_email = 1;
+    string password = 2;
+}
+
+// Response message for user authentication
+message AuthenticateUserResponse {
+    string token = 1; // JWT token or any other auth token
+    User user = 2;
+}
+
+// Request message for getting a user by ID
+message GetUserRequest {
+    string id = 1;
+}
+
+// Response message for getting a user
+message GetUserResponse {
+    User user = 1;
+}
+
+// Service definition for user/auth management
+service UserService {
+    rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+    rpc AuthenticateUser (AuthenticateUserRequest) returns (AuthenticateUserResponse);
+    rpc GetUser (GetUserRequest) returns (GetUserResponse);
+}
